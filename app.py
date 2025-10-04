@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
+from datetime import date
 
 # Load Supabase credentials
 load_dotenv()
@@ -50,7 +51,7 @@ elif choice == "View Customers":
 elif choice == "Add Event":
     st.subheader("Add Event")
     title = st.text_input("Event Title")
-    date = st.date_input("Event Date")
+    date_input = st.date_input("Event Date", min_value=date.today())
     location = st.text_input("Location")
     capacity = st.number_input("Capacity", min_value=1, step=1)
     price = st.number_input("Price (₹)", min_value=0.0, step=0.01, format="%.2f")
@@ -59,7 +60,7 @@ elif choice == "Add Event":
         try:
             supabase.table("events").insert({
                 "title": title,
-                "date": str(date),
+                "date": str(date_input),
                 "location": location,
                 "capacity": int(capacity),
                 "price": float(price)
@@ -85,13 +86,34 @@ elif choice == "Delete Event":
             event_id = st.selectbox("Select Event", list(event_list.keys()), format_func=lambda x: event_list[x])
 
             if st.button("Delete Event"):
-                # check bookings before deleting
-                bookings = supabase.table("bookings").select("booking_id").eq("event_id", event_id).execute()
+                # Fetch bookings for this event
+                bookings = supabase.table("bookings").select("*").eq("event_id", event_id).execute()
+
                 if bookings.data:
-                    st.error("⚠️ Cannot delete event. Bookings exist.")
-                else:
+                    # Cancel bookings & refund payments if PAID
+                    for b in bookings.data:
+                        # Cancel booking
+                        supabase.table("bookings").update({
+                            "status": "CANCELLED"
+                        }).eq("booking_id", b["booking_id"]).execute()
+
+                        # Refund payments if PAID
+                        payments = supabase.table("payments").select("*").eq("booking_id", b["booking_id"]).execute()
+                        if payments.data:
+                            for p in payments.data:
+                                if p["status"] == "PAID":
+                                    supabase.table("payments").update({
+                                        "status": "REFUNDED"
+                                    }).eq("payment_id", p["payment_id"]).execute()
+
+                    # Delete the event
                     supabase.table("events").delete().eq("event_id", event_id).execute()
-                    st.warning("🗑️ Event deleted successfully!")
+                    st.warning(f"🗑️ Event '{event_list[event_id]}' deleted. Bookings cancelled & payments refunded.")
+                else:
+                    # No bookings → safe to delete
+                    supabase.table("events").delete().eq("event_id", event_id).execute()
+                    st.warning(f"🗑️ Event '{event_list[event_id]}' deleted successfully (no bookings).")
+
         else:
             st.info("No events available.")
     except Exception as e:
@@ -114,7 +136,6 @@ elif choice == "Book Event":
 
             if st.button("Book Tickets"):
                 selected_event = next((e for e in events.data if e["event_id"] == event_id), None)
-
                 if selected_event:
                     booked = supabase.table("bookings").select("seats").eq("event_id", event_id).execute()
                     total_booked = sum([b["seats"] for b in booked.data]) if booked.data else 0
@@ -200,4 +221,6 @@ elif choice == "Payments":
             st.info("No payments found.")
     except Exception as e:
         st.error(f"Error fetching payments: {e}")
+
+
 
