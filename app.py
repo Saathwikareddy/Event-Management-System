@@ -13,8 +13,8 @@ st.set_page_config(page_title="🎟️ Event Management System", page_icon="🎉
 st.title("🎉 Event Management System")
 
 menu = ["Add Customer", "View Customers",
-        "Add Event", "View Events",
-        "Book Event", "View Bookings",
+        "Add Event", "View Events", "Delete Event",
+        "Book Event", "View Bookings", "Cancel Booking",
         "Payments"]
 choice = st.sidebar.selectbox("Menu", menu)
 
@@ -76,6 +76,27 @@ elif choice == "View Events":
     except Exception as e:
         st.error(f"Error fetching events: {e}")
 
+elif choice == "Delete Event":
+    st.subheader("Delete Event")
+    try:
+        events = supabase.table("events").select("*").execute()
+        if events.data:
+            event_list = {e["event_id"]: e["title"] for e in events.data}
+            event_id = st.selectbox("Select Event", list(event_list.keys()), format_func=lambda x: event_list[x])
+
+            if st.button("Delete Event"):
+                # check bookings before deleting
+                bookings = supabase.table("bookings").select("booking_id").eq("event_id", event_id).execute()
+                if bookings.data:
+                    st.error("⚠️ Cannot delete event. Bookings exist.")
+                else:
+                    supabase.table("events").delete().eq("event_id", event_id).execute()
+                    st.warning("🗑️ Event deleted successfully!")
+        else:
+            st.info("No events available.")
+    except Exception as e:
+        st.error(f"Error deleting event: {e}")
+
 # ---------------- BOOKINGS ----------------
 elif choice == "Book Event":
     st.subheader("Book Event")
@@ -133,6 +154,29 @@ elif choice == "View Bookings":
         st.dataframe(bookings.data)
     except Exception as e:
         st.error(f"Error fetching bookings: {e}")
+
+elif choice == "Cancel Booking":
+    st.subheader("Cancel Booking")
+    try:
+        bookings = supabase.table("bookings").select("*").eq("status", "BOOKED").execute()
+        if bookings.data:
+            booking_list = {b["booking_id"]: f"Cust {b['cust_id']} - Event {b['event_id']} ({b['seats']} seats)" for b in bookings.data}
+            booking_id = st.selectbox("Select Booking", list(booking_list.keys()), format_func=lambda x: booking_list[x])
+
+            if st.button("Cancel Booking"):
+                supabase.table("bookings").update({
+                    "status": "CANCELLED"
+                }).eq("booking_id", booking_id).execute()
+
+                supabase.table("payments").update({
+                    "status": "REFUNDED"
+                }).eq("booking_id", booking_id).execute()
+
+                st.warning("🚫 Booking cancelled and payment marked REFUNDED.")
+        else:
+            st.info("No active bookings to cancel.")
+    except Exception as e:
+        st.error(f"Error cancelling booking: {e}")
 
 # ---------------- PAYMENTS ----------------
 elif choice == "Payments":
