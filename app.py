@@ -251,4 +251,27 @@ elif choice == "Cancel Booking":
     try:
         bookings = supabase.table("bookings").select("*").eq("status", "BOOKED").execute()
         if bookings.data:
-            booking_list = {b["booking_id"]: f"Cust {b['cust_id']} - Event {b['event_id']} ({b['seats']} seats)" for b in bookings
+            booking_list = {b["booking_id"]: f"Cust {b['cust_id']} - Event {b['event_id']} ({b['seats']} seats)" for b in bookings.data}
+            booking_id = st.selectbox("Select Booking to Cancel", list(booking_list.keys()), format_func=lambda x: booking_list[x])
+            if st.button("Cancel Booking"):
+                # Refund payment if PAID
+                payments = supabase.table("payments").select("*").eq("booking_id", booking_id).execute()
+                if payments.data:
+                    for p in payments.data:
+                        if p["status"] == "PAID":
+                            supabase.table("payments").update({"status": "REFUNDED"}).eq("payment_id", p["payment_id"]).execute()
+                        supabase.table("payments").delete().eq("payment_id", p["payment_id"]).execute()
+                supabase.table("bookings").update({"status": "CANCELLED"}).eq("booking_id", booking_id).execute()
+                st.warning("Booking cancelled & payment refunded if paid.")
+        else:
+            st.info("No active bookings to cancel.")
+    except Exception as e:
+        st.error(f"Error cancelling booking: {e}")
+
+elif choice == "Payments":
+    st.subheader("Payments")
+    try:
+        payments = supabase.table("payments").select("*").execute()
+        st.dataframe(payments.data)
+    except Exception as e:
+        st.error(f"Error fetching payments: {e}")
