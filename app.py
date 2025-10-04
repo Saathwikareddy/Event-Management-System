@@ -1,123 +1,88 @@
 import streamlit as st
-from src.services import product_service, order_service, customer_service
+from supabase import create_client, Client
+import os
+from dotenv import load_dotenv
 
-# ------------------- PAGE CONFIG -------------------
-st.set_page_config(
-    page_title="Retail Inventory & Order Management",
-    page_icon="🛍️",
-    layout="wide"
-)
+# Load environment variables
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.title("🛒 Retail Inventory & Order Management")
+# Streamlit UI
+st.set_page_config(page_title="Event Management System", page_icon="🎉", layout="centered")
 
-# ------------------- SIDEBAR NAV -------------------
-menu = st.sidebar.radio(
-    "📌 Navigate",
-    ["Dashboard", "Products", "Orders", "Customers"]
-)
+st.title("🎉 Event Management System")
+menu = ["Add Event", "View Events", "Update Event", "Delete Event"]
+choice = st.sidebar.selectbox("Menu", menu)
 
-# ------------------- DASHBOARD -------------------
-if menu == "Dashboard":
-    st.header("📊 Dashboard Overview")
+# --- Add Event ---
+if choice == "Add Event":
+    st.subheader("Add New Event")
+    name = st.text_input("Event Name")
+    date = st.date_input("Event Date")
+    location = st.text_input("Location")
+    description = st.text_area("Description")
 
-    col1, col2, col3 = st.columns(3)
+    if st.button("Save Event"):
+        if name and location:
+            data = {
+                "name": name,
+                "date": str(date),
+                "location": location,
+                "description": description
+            }
+            supabase.table("events").insert(data).execute()
+            st.success(f"✅ Event '{name}' added successfully!")
+        else:
+            st.error("⚠️ Event Name and Location are required!")
 
-    with col1:
-        total_products = len(product_service.list_products())
-        st.metric("Total Products", total_products)
-
-    with col2:
-        total_orders = len(order_service.list_orders())
-        st.metric("Total Orders", total_orders)
-
-    with col3:
-        total_customers = len(customer_service.list_customers())
-        st.metric("Total Customers", total_customers)
-
-# ------------------- PRODUCTS -------------------
-elif menu == "Products":
-    st.header("📦 Manage Products")
-
-    # Refresh button
-    if st.button("🔄 Refresh Products"):
-        st.experimental_rerun()
-
-    products = product_service.list_products()
-
-    # Show products in a table
-    if products:
-        st.subheader("Available Products")
-        st.dataframe(products)
+# --- View Events ---
+elif choice == "View Events":
+    st.subheader("All Events")
+    events = supabase.table("events").select("*").execute()
+    if events.data:
+        st.table(events.data)
     else:
-        st.info("No products found.")
+        st.info("No events found.")
 
-    # Add product form
-    st.subheader("➕ Add New Product")
-    with st.form("add_product_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            name = st.text_input("Product Name")
-            sku = st.text_input("SKU")
-            category = st.text_input("Category")
-        with col2:
-            price = st.number_input("Price (₹)", min_value=0.0, format="%.2f")
-            stock = st.number_input("Stock", min_value=0, step=1)
+# --- Update Event ---
+elif choice == "Update Event":
+    st.subheader("Update Event")
+    events = supabase.table("events").select("*").execute()
+    if events.data:
+        event_list = {e["id"]: e["name"] for e in events.data}
+        event_id = st.selectbox("Select Event to Update", list(event_list.keys()), format_func=lambda x: event_list[x])
 
-        submitted = st.form_submit_button("Add Product")
-        if submitted:
-            try:
-                product_service.add_product(name, sku, price, int(stock), category)
-                st.success(f"✅ Product '{name}' added successfully!")
-                st.experimental_rerun()
-            except Exception as e:
-                st.error(f"❌ Failed to add product: {e}")
+        selected_event = next((e for e in events.data if e["id"] == event_id), None)
+        if selected_event:
+            name = st.text_input("Event Name", selected_event["name"])
+            date = st.date_input("Event Date")
+            location = st.text_input("Location", selected_event["location"])
+            description = st.text_area("Description", selected_event.get("description", ""))
 
-# ------------------- ORDERS -------------------
-elif menu == "Orders":
-    st.header("📝 Manage Orders")
-
-    orders = order_service.list_orders()
-    if orders:
-        st.subheader("All Orders")
-        st.dataframe(orders)
+            if st.button("Update Event"):
+                supabase.table("events").update({
+                    "name": name,
+                    "date": str(date),
+                    "location": location,
+                    "description": description
+                }).eq("id", event_id).execute()
+                st.success("✅ Event updated successfully!")
     else:
-        st.info("No orders available.")
+        st.info("No events available for update.")
 
-    st.subheader("➕ Create New Order")
-    with st.form("add_order_form"):
-        customer_id = st.text_input("Customer ID")
-        product_id = st.text_input("Product ID")
-        quantity = st.number_input("Quantity", min_value=1, step=1)
+# --- Delete Event ---
+elif choice == "Delete Event":
+    st.subheader("Delete Event")
+    events = supabase.table("events").select("*").execute()
+    if events.data:
+        event_list = {e["id"]: e["name"] for e in events.data}
+        event_id = st.selectbox("Select Event to Delete", list(event_list.keys()), format_func=lambda x: event_list[x])
 
-        if st.form_submit_button("Create Order"):
-            try:
-                order_service.create_order(customer_id, product_id, quantity)
-                st.success("✅ Order created successfully!")
-                st.experimental_rerun()
-            except Exception as e:
-                st.error(f"❌ Failed to create order: {e}")
-
-# ------------------- CUSTOMERS -------------------
-elif menu == "Customers":
-    st.header("👤 Manage Customers")
-
-    customers = customer_service.list_customers()
-    if customers:
-        st.subheader("All Customers")
-        st.dataframe(customers)
+        if st.button("Delete Event"):
+            supabase.table("events").delete().eq("id", event_id).execute()
+            st.warning("🗑️ Event deleted successfully!")
     else:
-        st.info("No customers found.")
+        st.info("No events available for deletion.")
 
-    st.subheader("➕ Add New Customer")
-    with st.form("add_customer_form", clear_on_submit=True):
-        name = st.text_input("Customer Name")
-        email = st.text_input("Email")
-        phone = st.text_input("Phone Number")
-
-        if st.form_submit_button("Add Customer"):
-            try:
-                customer_service.add_customer(name, email, phone)
-                st.success(f"✅ Customer '{name}' added successfully!")
-                st.experimental_rerun()
-            except Exception as e:
-                st.error(f"❌ Failed to add customer: {e}")
