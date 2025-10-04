@@ -12,7 +12,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
-    page_title="🎟️ Event Management System",
+    page_title="🎟️ Event Management Website",
     page_icon="🎉",
     layout="wide"
 )
@@ -33,90 +33,33 @@ h1 {
     text-align: center;
 }
 
-/* Sidebar */
-[data-testid="stSidebar"] {
-    background-color: #34495e;
-    color: white;
-}
-
-/* Sidebar links */
-[data-testid="stSidebar"] .css-1d391kg {
-    color: #ecf0f1;
-}
-
-/* Buttons */
-.stButton>button {
+/* Top menu buttons */
+.menu-button {
     background-color: #3498db;
     color: white;
-    border-radius: 8px;
-    height: 40px;
-    width: 100%;
     font-weight: bold;
+    margin: 2px;
+    padding: 8px 20px;
+    border-radius: 5px;
 }
-
-.stButton>button:hover {
+.menu-button:hover {
     background-color: #2980b9;
     color: white;
-}
-
-/* Dataframe styling */
-.stDataFrame {
-    border-radius: 10px;
-    border: 2px solid #3498db;
-}
-
-/* Warnings and success messages */
-.stWarning {
-    background-color: #f39c12;
-    color: white;
-    font-weight: bold;
-}
-.stSuccess {
-    background-color: #27ae60;
-    color: white;
-    font-weight: bold;
-}
-.stError {
-    background-color: #e74c3c;
-    color: white;
-    font-weight: bold;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- TITLE ----------------
-st.title("🎉 Event Management System")
+# ---------------- PAGE TITLE ----------------
+st.title("🎉 Event Management Website")
 
-# ---------------- MENU ----------------
-menu = ["Dashboard", "Add Customer", "View Customers",
-        "Add Event", "View Events", "Delete Event",
-        "Book Event", "View Bookings", "Cancel Booking",
-        "Payments"]
-choice = st.sidebar.selectbox("Menu", menu)
+# ---------------- TOP MENU ----------------
+menu_options = ["Add Customer", "View Customers", "Add Event", "View Events", 
+                "Delete Event", "Book Event", "View Bookings", "Cancel Booking", "Payments"]
 
-# ---------------- DASHBOARD ----------------
-if choice == "Dashboard":
-    st.subheader("📊 Dashboard")
-    try:
-        events = supabase.table("events").select("*").execute()
-        bookings = supabase.table("bookings").select("*").execute()
-        payments = supabase.table("payments").select("*").execute()
-        customers = supabase.table("customers").select("*").execute()
-
-        total_events = len(events.data) if events.data else 0
-        total_customers = len(customers.data) if customers.data else 0
-        total_bookings = len(bookings.data) if bookings.data else 0
-        total_revenue = sum([float(p['amount']) for p in payments.data if p['status'] == 'PAID']) if payments.data else 0
-
-        st.metric("Total Events", total_events)
-        st.metric("Total Customers", total_customers)
-        st.metric("Total Bookings", total_bookings)
-        st.metric("Total Revenue (₹)", f"{total_revenue:.2f}")
-    except Exception as e:
-        st.error(f"Error loading dashboard: {e}")
+selected_page = st.radio("", menu_options, horizontal=True)
 
 # ---------------- CUSTOMERS ----------------
-elif choice == "Add Customer":
+if selected_page == "Add Customer":
     st.subheader("Add Customer")
     name = st.text_input("Name")
     email = st.text_input("Email")
@@ -134,7 +77,7 @@ elif choice == "Add Customer":
         except Exception as e:
             st.error(f"Error: {e}")
 
-elif choice == "View Customers":
+elif selected_page == "View Customers":
     st.subheader("All Customers")
     try:
         customers = supabase.table("customers").select("*").execute()
@@ -143,7 +86,7 @@ elif choice == "View Customers":
         st.error(f"Error fetching customers: {e}")
 
 # ---------------- EVENTS ----------------
-elif choice == "Add Event":
+elif selected_page == "Add Event":
     st.subheader("Add Event")
     title = st.text_input("Event Title")
     date_input = st.date_input("Event Date", min_value=date.today())
@@ -163,7 +106,7 @@ elif choice == "Add Event":
         except Exception as e:
             st.error(f"Error: {e}")
 
-elif choice == "View Events":
+elif selected_page == "View Events":
     st.subheader("All Events")
     try:
         events = supabase.table("events").select("*").execute()
@@ -171,7 +114,7 @@ elif choice == "View Events":
     except Exception as e:
         st.error(f"Error fetching events: {e}")
 
-elif choice == "Delete Event":
+elif selected_page == "Delete Event":
     st.subheader("Delete Event")
     try:
         events = supabase.table("events").select("*").execute()
@@ -198,7 +141,7 @@ elif choice == "Delete Event":
         st.error(f"Error deleting event: {e}")
 
 # ---------------- BOOKINGS ----------------
-elif choice == "Book Event":
+elif selected_page == "Book Event":
     st.subheader("Book Event")
     try:
         customers = supabase.table("customers").select("*").execute()
@@ -238,7 +181,7 @@ elif choice == "Book Event":
     except Exception as e:
         st.error(f"Error booking event: {e}")
 
-elif choice == "View Bookings":
+elif selected_page == "View Bookings":
     st.subheader("All Bookings")
     try:
         bookings = supabase.table("bookings").select("*").execute()
@@ -246,7 +189,7 @@ elif choice == "View Bookings":
     except Exception as e:
         st.error(f"Error fetching bookings: {e}")
 
-elif choice == "Cancel Booking":
+elif selected_page == "Cancel Booking":
     st.subheader("Cancel Booking")
     try:
         bookings = supabase.table("bookings").select("*").eq("status", "BOOKED").execute()
@@ -254,7 +197,6 @@ elif choice == "Cancel Booking":
             booking_list = {b["booking_id"]: f"Cust {b['cust_id']} - Event {b['event_id']} ({b['seats']} seats)" for b in bookings.data}
             booking_id = st.selectbox("Select Booking to Cancel", list(booking_list.keys()), format_func=lambda x: booking_list[x])
             if st.button("Cancel Booking"):
-                # Refund payment if PAID
                 payments = supabase.table("payments").select("*").eq("booking_id", booking_id).execute()
                 if payments.data:
                     for p in payments.data:
@@ -268,7 +210,7 @@ elif choice == "Cancel Booking":
     except Exception as e:
         st.error(f"Error cancelling booking: {e}")
 
-elif choice == "Payments":
+elif selected_page == "Payments":
     st.subheader("Payments")
     try:
         payments = supabase.table("payments").select("*").execute()
