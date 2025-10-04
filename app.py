@@ -90,14 +90,8 @@ elif choice == "Delete Event":
                 bookings = supabase.table("bookings").select("*").eq("event_id", event_id).execute()
 
                 if bookings.data:
-                    # Cancel bookings & refund payments if PAID
+                    # Refund payments if paid
                     for b in bookings.data:
-                        # Cancel booking
-                        supabase.table("bookings").update({
-                            "status": "CANCELLED"
-                        }).eq("booking_id", b["booking_id"]).execute()
-
-                        # Refund payments if PAID
                         payments = supabase.table("payments").select("*").eq("booking_id", b["booking_id"]).execute()
                         if payments.data:
                             for p in payments.data:
@@ -105,15 +99,12 @@ elif choice == "Delete Event":
                                     supabase.table("payments").update({
                                         "status": "REFUNDED"
                                     }).eq("payment_id", p["payment_id"]).execute()
+                    # Delete bookings
+                    supabase.table("bookings").delete().eq("event_id", event_id).execute()
 
-                    # Delete the event
-                    supabase.table("events").delete().eq("event_id", event_id).execute()
-                    st.warning(f"🗑️ Event '{event_list[event_id]}' deleted. Bookings cancelled & payments refunded.")
-                else:
-                    # No bookings → safe to delete
-                    supabase.table("events").delete().eq("event_id", event_id).execute()
-                    st.warning(f"🗑️ Event '{event_list[event_id]}' deleted successfully (no bookings).")
-
+                # Delete the event
+                supabase.table("events").delete().eq("event_id", event_id).execute()
+                st.warning(f"🗑️ Event '{event_list[event_id]}' deleted. Bookings cancelled & payments refunded if any.")
         else:
             st.info("No events available.")
     except Exception as e:
@@ -221,6 +212,4 @@ elif choice == "Payments":
             st.info("No payments found.")
     except Exception as e:
         st.error(f"Error fetching payments: {e}")
-
-
 
