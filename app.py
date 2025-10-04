@@ -26,6 +26,11 @@ st.markdown("""
     font-family: 'Segoe UI', sans-serif;
 }
 
+/* Top menu horizontal line color */
+header ~ div {
+    border-bottom: 4px solid #6a1b9a !important;
+}
+
 /* Tabs customization */
 .css-1kyxreq.edgvbvh3 {  /* Streamlit tab container */
     background-color: #6a1b9a !important;
