@@ -22,7 +22,7 @@ st.markdown("""
 <style>
 /* Background gradient */
 [data-testid="stAppViewContainer"] {
-    background: linear-gradient(135deg, #f3e5f5, #e1f5fe);
+    background: linear-gradient(135deg, #fce4ec, #e1bee7);
     font-family: 'Segoe UI', sans-serif;
 }
 
@@ -81,7 +81,7 @@ h2 {
 # ---------------- PAGE TITLE ----------------
 st.title("🎫 Event Management System")
 
-# ---------------- TABS (TOP HORIZONTAL MENU) ----------------
+# ---------------- TABS ----------------
 tabs = ["Add Customer", "View Customers", "Add Event", "View Events", "Delete Event",
         "Book Event", "View Bookings", "Cancel Booking", "Payments"]
 
@@ -177,7 +177,6 @@ with tab6:
     try:
         customers = supabase.table("customers").select("*").execute()
         events = supabase.table("events").select("*").execute()
-
         if customers.data and events.data:
             cust_list = {c["cust_id"]: c["name"] for c in customers.data}
             event_list = {e["event_id"]: f"{e['title']} ({e['date']})" for e in events.data}
@@ -185,6 +184,7 @@ with tab6:
             cust_id = st.selectbox("Select Customer", list(cust_list.keys()), format_func=lambda x: cust_list[x])
             event_id = st.selectbox("Select Event", list(event_list.keys()), format_func=lambda x: event_list[x])
             seats = st.number_input("Number of Seats", min_value=1, step=1)
+            payment_method = st.selectbox("Payment Method", ["Cash", "Card", "UPI"])
 
             if st.button("Book Tickets"):
                 selected_event = next((e for e in events.data if e["event_id"] == event_id), None)
@@ -194,6 +194,7 @@ with tab6:
                     available = selected_event["capacity"] - total_booked
 
                     if seats <= available:
+                        # Create booking
                         booking_resp = supabase.table("bookings").insert({
                             "cust_id": cust_id,
                             "event_id": event_id,
@@ -203,14 +204,19 @@ with tab6:
 
                         booking_id = booking_resp.data[0]["booking_id"]
                         amount = float(selected_event["price"]) * seats
+
+                        # Determine payment status
+                        payment_status = "PAID" if payment_method in ["Card", "UPI"] else "PENDING"
+
+                        # Insert payment with chosen method and status
                         supabase.table("payments").insert({
                             "booking_id": booking_id,
                             "amount": amount,
-                            "method": "PENDING",
-                            "status": "PENDING"
+                            "method": payment_method,
+                            "status": payment_status
                         }).execute()
 
-                        st.success(f"✅ {seats} seats booked for '{selected_event['title']}'! Payment pending: ₹{amount}")
+                        st.success(f"✅ {seats} seats booked for '{selected_event['title']}'! Payment ({payment_method}): ₹{amount} - {payment_status}")
                     else:
                         st.error(f"⚠️ Only {available} seats left. Cannot book {seats} seats.")
         else:
