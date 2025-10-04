@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from datetime import date
 
-# Load Supabase credentials
+# ---------------- SUPABASE SETUP ----------------
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -86,12 +86,12 @@ elif choice == "Delete Event":
             event_id = st.selectbox("Select Event", list(event_list.keys()), format_func=lambda x: event_list[x])
 
             if st.button("Delete Event"):
-                # Fetch bookings for this event
+                # 1️⃣ Fetch bookings for this event
                 bookings = supabase.table("bookings").select("*").eq("event_id", event_id).execute()
 
                 if bookings.data:
-                    # Refund payments if paid
                     for b in bookings.data:
+                        # 2️⃣ Refund payments first
                         payments = supabase.table("payments").select("*").eq("booking_id", b["booking_id"]).execute()
                         if payments.data:
                             for p in payments.data:
@@ -99,12 +99,15 @@ elif choice == "Delete Event":
                                     supabase.table("payments").update({
                                         "status": "REFUNDED"
                                     }).eq("payment_id", p["payment_id"]).execute()
-                    # Delete bookings
+                                # Delete payment to clear FK dependency
+                                supabase.table("payments").delete().eq("payment_id", p["payment_id"]).execute()
+
+                    # 3️⃣ Delete bookings
                     supabase.table("bookings").delete().eq("event_id", event_id).execute()
 
-                # Delete the event
+                # 4️⃣ Delete the event
                 supabase.table("events").delete().eq("event_id", event_id).execute()
-                st.warning(f"🗑️ Event '{event_list[event_id]}' deleted. Bookings cancelled & payments refunded if any.")
+                st.warning(f"🗑️ Event '{event_list[event_id]}' deleted. Bookings cancelled & payments refunded/deleted.")
         else:
             st.info("No events available.")
     except Exception as e:
@@ -212,4 +215,3 @@ elif choice == "Payments":
             st.info("No payments found.")
     except Exception as e:
         st.error(f"Error fetching payments: {e}")
-
