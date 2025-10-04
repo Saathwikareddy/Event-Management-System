@@ -26,15 +26,33 @@ st.markdown("""
     font-family: 'Segoe UI', sans-serif;
 }
 
-/* Sidebar styling */
-.css-1d391kg {  /* Streamlit sidebar container */
+/* Tabs customization */
+.css-1kyxreq.edgvbvh3 {  /* Streamlit tab container */
     background-color: #6a1b9a !important;
     color: white !important;
 }
+.css-1kyxreq.edgvbvh3 button {
+    background-color: #6a1b9a;
+    color: #fff;
+    font-weight: bold;
+    border-radius: 8px;
+    margin: 3px;
+    padding: 8px 15px;
+    transition: 0.3s;
+}
+.css-1kyxreq.edgvbvh3 button:hover {
+    background-color: #7b1fa2;
+    color: #ffeb3b;
+}
 
-/* Sidebar header */
-.sidebar .sidebar-content h2 {
-    color: #ffeb3b !important;
+/* Titles */
+h1 {
+    color: #4a148c;
+    text-align: center;
+    font-weight: bold;
+}
+h2 {
+    color: #6a1b9a;
     font-weight: bold;
 }
 
@@ -52,42 +70,20 @@ st.markdown("""
     background-color: #f50057;
     color: white;
 }
-
-/* Inputs */
-.stTextInput>div>div>input, .stNumberInput>div>div>input {
-    border-radius: 5px;
-    padding: 5px;
-}
-
-/* Titles */
-h1 {
-    color: #4a148c;
-    text-align: center;
-    font-weight: bold;
-}
-h2 {
-    color: #6a1b9a;
-    font-weight: bold;
-}
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- PAGE TITLE ----------------
 st.title("🎉 Event Management Website")
 
-# ---------------- VERTICAL SIDEBAR MENU ----------------
-menu_options = [
-    "Add Customer", "View Customers",
-    "Add Event", "View Events", "Delete Event",
-    "Book Event", "View Bookings", "Cancel Booking", "Payments"
-]
+# ---------------- TABS (TOP HORIZONTAL MENU) ----------------
+tabs = ["Add Customer", "View Customers", "Add Event", "View Events", "Delete Event",
+        "Book Event", "View Bookings", "Cancel Booking", "Payments"]
 
-with st.sidebar:
-    st.header("Menu")
-    selected_page = st.radio("", menu_options)
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(tabs)
 
-# ---------------- CUSTOMERS ----------------
-if selected_page == "Add Customer":
+# ---------------- ADD CUSTOMER ----------------
+with tab1:
     st.subheader("Add Customer")
     name = st.text_input("Name")
     email = st.text_input("Email")
@@ -105,7 +101,8 @@ if selected_page == "Add Customer":
         except Exception as e:
             st.error(f"Error: {e}")
 
-elif selected_page == "View Customers":
+# ---------------- VIEW CUSTOMERS ----------------
+with tab2:
     st.subheader("All Customers")
     try:
         customers = supabase.table("customers").select("*").execute()
@@ -113,14 +110,14 @@ elif selected_page == "View Customers":
     except Exception as e:
         st.error(f"Error fetching customers: {e}")
 
-# ---------------- EVENTS ----------------
-elif selected_page == "Add Event":
+# ---------------- ADD EVENT ----------------
+with tab3:
     st.subheader("Add Event")
-    title = st.text_input("Event Title")
-    date_input = st.date_input("Event Date", min_value=date.today())
-    location = st.text_input("Location")
-    capacity = st.number_input("Capacity", min_value=1, step=1)
-    price = st.number_input("Price (₹)", min_value=0.0, step=0.01, format="%.2f")
+    title = st.text_input("Event Title", key="event_title")
+    date_input = st.date_input("Event Date", min_value=date.today(), key="event_date")
+    location = st.text_input("Location", key="event_location")
+    capacity = st.number_input("Capacity", min_value=1, step=1, key="event_capacity")
+    price = st.number_input("Price (₹)", min_value=0.0, step=0.01, format="%.2f", key="event_price")
     if st.button("Save Event"):
         try:
             supabase.table("events").insert({
@@ -134,7 +131,8 @@ elif selected_page == "Add Event":
         except Exception as e:
             st.error(f"Error: {e}")
 
-elif selected_page == "View Events":
+# ---------------- VIEW EVENTS ----------------
+with tab4:
     st.subheader("All Events")
     try:
         events = supabase.table("events").select("*").execute()
@@ -142,7 +140,8 @@ elif selected_page == "View Events":
     except Exception as e:
         st.error(f"Error fetching events: {e}")
 
-elif selected_page == "Delete Event":
+# ---------------- DELETE EVENT ----------------
+with tab5:
     st.subheader("Delete Event")
     try:
         events = supabase.table("events").select("*").execute()
@@ -167,8 +166,8 @@ elif selected_page == "Delete Event":
     except Exception as e:
         st.error(f"Error deleting event: {e}")
 
-# ---------------- BOOKINGS ----------------
-elif selected_page == "Book Event":
+# ---------------- BOOK EVENT ----------------
+with tab6:
     st.subheader("Book Event")
     try:
         customers = supabase.table("customers").select("*").execute()
@@ -208,7 +207,8 @@ elif selected_page == "Book Event":
     except Exception as e:
         st.error(f"Error booking event: {e}")
 
-elif selected_page == "View Bookings":
+# ---------------- VIEW BOOKINGS ----------------
+with tab7:
     st.subheader("All Bookings")
     try:
         bookings = supabase.table("bookings").select("*").execute()
@@ -216,7 +216,8 @@ elif selected_page == "View Bookings":
     except Exception as e:
         st.error(f"Error fetching bookings: {e}")
 
-elif selected_page == "Cancel Booking":
+# ---------------- CANCEL BOOKING ----------------
+with tab8:
     st.subheader("Cancel Booking")
     try:
         bookings = supabase.table("bookings").select("*").eq("status", "BOOKED").execute()
@@ -237,7 +238,8 @@ elif selected_page == "Cancel Booking":
     except Exception as e:
         st.error(f"Error cancelling booking: {e}")
 
-elif selected_page == "Payments":
+# ---------------- PAYMENTS ----------------
+with tab9:
     st.subheader("Payments")
     try:
         payments = supabase.table("payments").select("*").execute()
