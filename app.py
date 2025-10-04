@@ -22,29 +22,52 @@ st.markdown("""
 <style>
 /* Background gradient */
 [data-testid="stAppViewContainer"] {
-    background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
-}
-
-/* Main title */
-h1 {
-    color: #2c3e50;
+    background: linear-gradient(135deg, #e0f7fa, #e1bee7);
     font-family: 'Segoe UI', sans-serif;
-    font-weight: bold;
-    text-align: center;
 }
 
-/* Top menu buttons */
-.menu-button {
-    background-color: #3498db;
+/* Sidebar styling */
+.css-1d391kg {  /* Streamlit sidebar container */
+    background-color: #6a1b9a !important;
+    color: white !important;
+}
+
+/* Sidebar header */
+.sidebar .sidebar-content h2 {
+    color: #ffeb3b !important;
+    font-weight: bold;
+}
+
+/* Buttons */
+.stButton>button {
+    background-color: #ff4081;
     color: white;
     font-weight: bold;
-    margin: 2px;
+    border-radius: 8px;
     padding: 8px 20px;
-    border-radius: 5px;
+    margin: 5px 0;
+    transition: 0.3s;
 }
-.menu-button:hover {
-    background-color: #2980b9;
+.stButton>button:hover {
+    background-color: #f50057;
     color: white;
+}
+
+/* Inputs */
+.stTextInput>div>div>input, .stNumberInput>div>div>input {
+    border-radius: 5px;
+    padding: 5px;
+}
+
+/* Titles */
+h1 {
+    color: #4a148c;
+    text-align: center;
+    font-weight: bold;
+}
+h2 {
+    color: #6a1b9a;
+    font-weight: bold;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -52,11 +75,16 @@ h1 {
 # ---------------- PAGE TITLE ----------------
 st.title("🎉 Event Management Website")
 
-# ---------------- TOP MENU ----------------
-menu_options = ["Add Customer", "View Customers", "Add Event", "View Events", 
-                "Delete Event", "Book Event", "View Bookings", "Cancel Booking", "Payments"]
+# ---------------- VERTICAL SIDEBAR MENU ----------------
+menu_options = [
+    "Add Customer", "View Customers",
+    "Add Event", "View Events", "Delete Event",
+    "Book Event", "View Bookings", "Cancel Booking", "Payments"
+]
 
-selected_page = st.radio("", menu_options, horizontal=True)
+with st.sidebar:
+    st.header("Menu")
+    selected_page = st.radio("", menu_options)
 
 # ---------------- CUSTOMERS ----------------
 if selected_page == "Add Customer":
@@ -122,7 +150,6 @@ elif selected_page == "Delete Event":
             event_list = {e["event_id"]: e["title"] for e in events.data}
             event_id = st.selectbox("Select Event", list(event_list.keys()), format_func=lambda x: event_list[x])
             if st.button("Delete Event"):
-                # Refund payments and delete bookings first
                 bookings = supabase.table("bookings").select("*").eq("event_id", event_id).execute()
                 if bookings.data:
                     for b in bookings.data:
